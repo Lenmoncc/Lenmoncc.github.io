@@ -59,7 +59,7 @@ social:
 favicon: /img/favicon.ico
 
 avatar:
-  img: /img/butterfly-icon.png
+  img: /img/avatar.jpg
   effect: false
 
 # Disable all banner images
@@ -69,7 +69,7 @@ disable_top_img: false
 default_top_img:
 
 # The banner image of index page
-index_img:
+index_img: /img/index-bg.jpg
 
 # The banner image of archive page
 archive_img:
@@ -835,7 +835,7 @@ font:
   global_font_size:
   code_font_size:
   font_family:
-  code_font_family:
+  code_font_family: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, Menlo, Monaco, 'Microsoft YaHei', monospace"
 
 # Font settings for the site title and site subtitle
 blog_title_font:
@@ -1067,6 +1067,8 @@ inject:
   head:
     # - <link rel="stylesheet" href="/xxx.css">
   bottom:
+    # busuanzi 超时兜底：4 秒没拿到数据就把转圈图标换成 --
+    - <script src="/js/busuanzi-fallback.js"></script>
     # - <script src="xxxx"></script>
 
 # CDN Settings
@@ -1094,7 +1096,7 @@ CDN:
     # artalk_css:
     # artalk_js:
     # blueimp_md5:
-    # busuanzi:
+    busuanzi: /js/busuanzi.pure.mini.js
     # canvas_fluttering_ribbon:
     # canvas_nest:
     # canvas_ribbon:

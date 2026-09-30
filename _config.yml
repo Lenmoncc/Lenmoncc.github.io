@@ -67,8 +67,13 @@ index_generator:
 
 # Category & Tag
 default_category: uncategorized
+# 分类 / 标签的英文路径映射（页面上显示的仍是中文名）
 category_map:
+  折腾记录: notes
 tag_map:
+  Hexo: hexo
+  GitHub Pages: github-pages
+  静态博客: static-blog
 
 # Metadata elements
 ## https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta

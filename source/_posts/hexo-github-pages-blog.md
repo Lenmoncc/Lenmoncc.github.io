@@ -243,7 +243,7 @@ hexo clean && hexo d -g
 
 等 1~2 分钟，访问 `https://你的用户名.github.io`——上线了。
 
-## 六、我踩过的 5 个坑
+## 六、我踩过的 6 个坑
 
 这一节是本文最有价值的部分，每个坑都附上原因分析。
 
@@ -373,21 +373,61 @@ git push -u origin backup
 
 `main` 分支归 `hexo d` 管，`backup` 分支归你手写，两边互不干扰。
 
+### 坑 6：文章链接变成一长串 `%E6%90%AD%E5%BB%BA...`
+
+**现象**：文章的地址是 `https://lenmoncc.github.io/2026/09/30/%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2/`，又长又难看，复制分享给别人更没法看。
+
+**原因**：URL 规范里只允许 ASCII 字符。中文会被浏览器按 UTF-8 逐字节做 **percent-encoding（百分号编码）**——「搭」的 UTF-8 字节是 `E6 90 AD`，就编码成 `%E6%90%AD`，一个汉字要占 9 个字符。而 permalink 里的 `:title` 取的是**文件名**：
+
+```js
+// node_modules/hexo/dist/plugins/processor/post.js 第 48 行
+data.slug = info.title;   // 用文件名生成 slug
+```
+
+文件名是中文，URL 自然就是中文编码。
+
+**解决**：把源文件改成英文名，比如 `source/_posts/hexo-github-pages-blog.md`。文章标题由 front-matter 的 `title` 决定，**改名不影响页面上显示的中文标题**。
+
+这里有个反直觉的点值得单独说：**在 front-matter 里写 `slug:` 是无效的**。上面那行 `data.slug = info.title` 是**无条件赋值**，会把你写的 `slug` 直接覆盖掉——我一开始就是这么改的，生成出来路径纹丝不动。想让 URL 与文件名彻底解耦，只能用 front-matter 的 `permalink` 指定完整路径：
+
+```yaml
+---
+title: 个人博客搭建：Github Pages + Hexo
+permalink: 2026/09/30/hexo-github-pages-blog/
+---
+```
+
+代价是日期写死在 front-matter 里，以后改 `date` 不会同步改 URL。所以我还是选了改文件名这条路。
+
+同理，分类页和标签页的路径（`/categories/折腾记录/`）也会被编码。用 `_config.yml` 里的 `category_map` / `tag_map` 可以指定英文路径，页面上显示的仍然是中文名：
+
+```yaml
+category_map:
+  折腾记录: notes
+tag_map:
+  Hexo: hexo
+  GitHub Pages: github-pages
+  静态博客: static-blog
+```
+
 ## 七、目录结构速查
 
 ```
 myblog/
-├── _config.yml          # 全站主配置（站点信息 / URL / 部署）
-├── package.json         # 依赖清单
-├── scaffolds/           # 新建文章的模板
-├── source/              # 内容源（要备份的就是这里）
-│   └── _posts/          #   ← 文章都在这
-│       ├── hello-world.md
-│       └── 搭建个人博客.md
-├── themes/              # 主题
-│   └── landscape/
-├── public/              # ← 生成结果，即「网站」，不提交
-└── .deploy_git/         # 部署时自动创建的 git 工作区，不提交
+├── _config.yml           # 全站主配置（站点信息 / URL / 部署）
+├── _config.butterfly.yml # 主题配置（与主题本体分离，升级不覆盖）
+├── package.json          # 依赖清单
+├── scaffolds/            # 新建文章的模板
+├── source/               # 内容源（要备份的就是这里）
+│   ├── _posts/           #   ← 文章都在这
+│   │   ├── hello-world.md
+│   │   └── hexo-github-pages-blog.md
+│   ├── img/              # 头像、首页横幅等图片
+│   └── js/               # 自定义脚本
+├── themes/               # 主题
+│   └── butterfly/
+├── public/               # ← 生成结果，即「网站」，不提交
+└── .deploy_git/          # 部署时自动创建的 git 工作区，不提交
 ```
 
 ## 八、日常写作流程
@@ -428,13 +468,32 @@ git add . && git commit -m "新增文章：文章标题" && git push
 
 1. **换掉了默认主题。** landscape 太朴素，换成了 [Butterfly](https://butterfly.js.org/)。做法是把主题 clone 到 `themes/` 目录，再把主题自带的 `_config.yml` 复制到站点根目录、重命名为 `_config.butterfly.yml` 单独维护——**这样以后更新主题不会覆盖自己的配置**。注意 Butterfly 依赖 `hexo-renderer-pug` 和 `hexo-renderer-stylus`，要先用 `npm install` 装上。
 2. **源码备份到 `backup` 分支。** 就是坑 5 里那套方案。现在仓库里 `main` 归 `hexo d` 管，`backup` 归手写，互不干扰。
-3. **加了 Giscus 评论。** 基于 GitHub Discussions，不需要额外注册账号，也没有第三方广告。配置分两步：先在仓库 Settings → Features 里勾选 Discussions，再到 [giscus.app](https://giscus.app/) 授权并拿到 `repo-id` 和 `category-id`，填进 `_config.butterfly.yml` 的 `giscus` 段即可。
+3. **加了 Giscus 评论。** 基于 GitHub Discussions，不需要额外注册账号，也没有第三方广告。
+
+   它的前置条件有**三个**，缺一个都会卡住，而多数教程只提前两个：
+
+   1. 仓库必须是**公开**的；
+   2. 仓库 Settings → General → Features 里勾选 **Discussions**；
+   3. 把 **giscus GitHub App 安装到这个仓库上**（到 [github.com/apps/giscus](https://github.com/apps/giscus) 点 Install，选 Only select repositories，只授权这一个仓库）。
+
+   我一开始只做了 ①②，结果 [giscus.app](https://giscus.app/) 一直报「无法在该仓库上使用 giscus」，来回折腾半天才发现是 ③ 没做 —— 而这个 App 不只是配置工具，评论的写入本身就依赖它，绕不过去。
+
+   三步齐了之后，在 giscus.app 上填仓库名、映射选 `pathname`、分类选 `Announcements`，就能拿到 `repo-id` 和 `category-id`，填进 `_config.butterfly.yml` 的 `giscus` 段。
+
+   想快速判断卡在哪一条，可以直接问 giscus 的接口：
+
+   ```bash
+   curl -s "https://giscus.app/api/discussions/categories?repo=你的用户名/你的用户名.github.io"
+   ```
+
+   返回 `{"error":"giscus is not installed on this repository"}`，就是第 ③ 条没做。三个条件都满足时，它会直接返回该仓库全部分类的 JSON。
 
 ## 十、还没做的
 
 1. **图片处理**——开启 `post_asset_folder`，让图片和文章放在一起，或者上对象存储做图床。
 2. **SEO**——加 `hexo-generator-sitemap` 和 `hexo-generator-feed`，生成 sitemap 和 RSS。
 3. **自定义域名**——等确定能长期写下去再买，几十块一年，绑个 CNAME 即可。
+4. **站内搜索**——Butterfly 自带本地搜索能力，装 `hexo-generator-searchdb` 后把 `_config.butterfly.yml` 里的 `search.use` 改成 `local_search` 就行，不依赖第三方服务。
 
 ## 写在最后
 
